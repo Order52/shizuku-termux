@@ -155,6 +155,10 @@ Without a `keystore.properties` file the release APK is signed with your debug k
 - Questions or ideas: [Discussions](https://github.com/Order52/shizuku-termux/discussions).
 - If it helped you, a ⭐ helps other people find it.
 
+## Credits
+
+Made with the assistance of AI.
+
 ## License
 
 MIT
