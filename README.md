@@ -1,5 +1,13 @@
 # shizuku-termux
 
+[![Release](https://img.shields.io/github/v/release/Order52/shizuku-termux?label=release)](https://github.com/Order52/shizuku-termux/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Order52/shizuku-termux/total?label=APK%20downloads)](https://github.com/Order52/shizuku-termux/releases)
+[![Android 7+](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)](#what-you-need)
+[![APK size](https://img.shields.io/badge/APK-17%20KB-blue)](https://github.com/Order52/shizuku-termux/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+**Start Shizuku without a PC.** One command in Termux, or one tap in a tiny app.
+
 Start [Shizuku](https://shizuku.rikka.app/) from your phone with one command in
 [Termux](https://github.com/termux/termux-app), or one tap in a 17 KB app. No computer needed
 whenever your phone allows it.
@@ -9,6 +17,17 @@ curl -fsSL https://raw.githubusercontent.com/Order52/shizuku-termux/main/install
 ```
 
 Then type `sz` in Termux, or tap **Start** in the app.
+
+## If you searched for…
+
+- *How to start Shizuku without a computer / without PC*
+- *Shizuku stops after reboot, start it again from the phone*
+- *Start Shizuku from Termux* or *Termux Shizuku script*
+- *Shizuku on Huawei / EMUI / HarmonyOS without Wireless debugging*
+- *Shizuku with adb tcpip 5555* or *adb over Wi-Fi in Termux*
+- *One-tap Shizuku start button or home-screen shortcut*
+
+…this is what this project does.
 
 ## What you need
 
@@ -128,6 +147,13 @@ cd app
 ```
 
 Without a `keystore.properties` file the release APK is signed with your debug key.
+
+## Help and feedback
+
+- Something not working? [Open an issue](https://github.com/Order52/shizuku-termux/issues/new/choose)
+  with your phone model and Android version.
+- Questions or ideas: [Discussions](https://github.com/Order52/shizuku-termux/discussions).
+- If it helped you, a ⭐ helps other people find it.
 
 ## License
 

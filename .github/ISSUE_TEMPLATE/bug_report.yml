@@ -1,0 +1,56 @@
+name: Something doesn't work
+description: Shizuku does not start, the app shows an error, or the installer fails
+labels: [bug]
+body:
+  - type: input
+    id: phone
+    attributes:
+      label: Phone model
+      placeholder: e.g. Samsung Galaxy A54, Huawei nova 12, Pixel 7
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android version (and skin, if any)
+      placeholder: e.g. Android 14 / One UI 6, EMUI 14.2
+    validations:
+      required: true
+  - type: dropdown
+    id: method
+    attributes:
+      label: How should Termux get access?
+      options:
+        - Wireless debugging (Android 11+)
+        - adb tcpip 5555 from a computer
+        - Root
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it fail?
+      options:
+        - Installer (curl ... | bash)
+        - sz / shizuku command in Termux
+        - The app
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: What you see
+      description: Paste the Termux output or the app's message. Screenshots are fine too.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: Run `shizuku version` in Termux, and check the Termux and Shizuku app versions.
+      placeholder: |
+        shizuku-termux 1.0.0
+        Termux 0.118.3 (GitHub / F-Droid / Play Store)
+        Shizuku 13.6.0
