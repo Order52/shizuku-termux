@@ -3,5 +3,5 @@
     <string name="app_name">Shizuku Termux</string>
     <string name="shortcut_start">Start Shizuku</string>
     <string name="shortcut_stop">Stop Shizuku</string>
-    <string name="help">How Termux gets access to start Shizuku:\n• Android 11+: turn on Wireless debugging, then run \"shizuku pair\" in Termux once.\n• Any Android: run \"adb tcpip 5555\" from a computer once after each reboot.\n• Rooted phones: allow Termux in your root manager.\n\nLong-press this app\'s icon for Start / Stop shortcuts.</string>
+    <string name="help">How Termux gets access to start Shizuku:\n• Android 11+: turn on Wireless debugging, then tap Pair above once.\n• Any Android: run \"adb tcpip 5555\" from a computer once after each reboot.\n• Rooted phones: allow Termux in your root manager.\n\nLong-press this app\'s icon for Start / Stop shortcuts.</string>
 </resources>

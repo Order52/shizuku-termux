@@ -1,6 +1,7 @@
 package io.github.order52.shizukutermux;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
@@ -16,11 +17,13 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -62,6 +65,9 @@ public class MainActivity extends Activity {
     private Button startButton;
     private Button stopButton;
     private Button refreshButton;
+    private Button pairButton;
+    private Button updateButton;
+    private Button fixButton;
     private String pendingCommand;
     private boolean busy;
     private int requestCounter;
@@ -157,6 +163,9 @@ public class MainActivity extends Activity {
         startButton.setEnabled(ready && !busy);
         stopButton.setEnabled(ready && !busy);
         refreshButton.setEnabled(ready && !busy);
+        pairButton.setEnabled(ready && !busy);
+        updateButton.setEnabled(ready && !busy);
+        fixButton.setEnabled(ready && !busy);
         if (!termuxOk || !termuxNewEnough) {
             statusView.setText("Install Termux first");
         } else if (!permissionOk) {
@@ -264,6 +273,47 @@ public class MainActivity extends Activity {
         return null;
     }
 
+    /** Pairs with Wireless debugging (Android 11+) without opening Termux. */
+    private void pair() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(20), dp(8), dp(20), 0);
+        EditText port = new EditText(this);
+        port.setHint("Port (the number after the colon)");
+        port.setInputType(InputType.TYPE_CLASS_NUMBER);
+        EditText code = new EditText(this);
+        code.setHint("6-digit pairing code");
+        code.setInputType(InputType.TYPE_CLASS_NUMBER);
+        box.addView(port);
+        box.addView(code);
+        new AlertDialog.Builder(this)
+                .setTitle("Pair Wireless debugging")
+                .setMessage("Settings > Developer options > Wireless debugging > Pair device with "
+                        + "pairing code. Keep that dialog open (split screen with this app) and type "
+                        + "what it shows.")
+                .setView(box)
+                .setPositiveButton("Pair", (d, w) -> {
+                    String p = port.getText().toString().trim();
+                    String c = code.getText().toString().trim();
+                    if (!p.matches("\\d{2,5}") || !c.matches("\\d{6}")) {
+                        showOutput("Enter the port and the 6-digit code from the pairing dialog.");
+                        return;
+                    }
+                    run("pair " + p + " " + c);
+                })
+                .setNeutralButton("Open settings", (d, w) -> openDeveloperOptions())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void openDeveloperOptions() {
+        try {
+            startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS));
+        } catch (RuntimeException e) {
+            showOutput("Turn on Developer options first: Settings > About phone > tap Build number 7 times.");
+        }
+    }
+
     private void onResult(String command, Bundle result) {
         if (result == null) {
             showOutput("Termux returned no result.");
@@ -296,7 +346,10 @@ public class MainActivity extends Activity {
         if (running != null) {
             statusView.setText(running ? "Shizuku is running" : "Shizuku is not running");
         } else if (exitCode != 0) {
-            statusView.setText("Could not " + ("status".equals(command) ? "check" : command) + " Shizuku");
+            statusView.setText(command.startsWith("pair") ? "Pairing failed"
+                    : "Could not " + ("status".equals(command) ? "check" : command) + " Shizuku");
+        } else {
+            statusView.setText("Done");
         }
         showOutput(text.isEmpty() ? "Done." : text);
     }
@@ -305,7 +358,9 @@ public class MainActivity extends Activity {
         switch (command) {
             case "start": return "Starting Shizuku…";
             case "stop": return "Stopping Shizuku…";
-            default: return "Checking…";
+            case "update": return "Updating shizuku-termux…";
+            case "fix-termux": return "Fixing Termux…";
+            default: return command.startsWith("pair") ? "Pairing…" : "Checking…";
         }
     }
 
@@ -340,6 +395,17 @@ public class MainActivity extends Activity {
         buttons.addView(stopButton, weight());
         buttons.addView(refreshButton, weight());
         root.addView(buttons);
+
+        // Everything after the one-time install runs from here; no need to open Termux.
+        LinearLayout tools = new LinearLayout(this);
+        tools.setOrientation(LinearLayout.HORIZONTAL);
+        pairButton = button("Pair", v -> pair());
+        updateButton = button("Update", v -> run("update"));
+        fixButton = button("Fix Termux", v -> run("fix-termux"));
+        tools.addView(pairButton, weight());
+        tools.addView(updateButton, weight());
+        tools.addView(fixButton, weight());
+        root.addView(tools);
 
         outputView = text("", 14, false);
         outputView.setTypeface(Typeface.MONOSPACE);
