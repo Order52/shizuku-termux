@@ -28,5 +28,28 @@
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
         </activity>
+
+        <service
+            android:name=".ShizukuTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile"
+            android:label="Shizuku"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <!-- Updated only when a start/stop result arrives (EMUI never binds passive tiles). -->
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
+        <!-- Termux's reply to a tile tap. -->
+        <receiver
+            android:name=".ShizukuTile$Result"
+            android:exported="false" />
     </application>
 </manifest>

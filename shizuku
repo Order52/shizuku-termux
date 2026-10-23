@@ -8,7 +8,7 @@
 #   3. Wireless debugging (Android 11+), found automatically after a one-time `shizuku pair`
 #   4. Root (su), if the phone is rooted
 
-VERSION=1.2.0
+VERSION=1.3.0
 PKG=moe.shizuku.privileged.api
 CONF_DIR="$HOME/.config/shizuku-termux"
 QUIET=0
@@ -189,7 +189,8 @@ start_shizuku() {
 
 stop_shizuku() {
   if ! running; then say "Shizuku is not running."; return 0; fi
-  run "pkill -f shizuku_server || killall shizuku_server" >/dev/null
+  # Force-stop the app first so its Watchdog can't start the server straight back up.
+  run "am force-stop $PKG; pkill -f shizuku_server || killall shizuku_server" >/dev/null
   sleep 1
   if running; then err "Could not stop Shizuku."; return 1; fi
   say "Shizuku stopped."

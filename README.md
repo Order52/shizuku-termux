@@ -9,7 +9,7 @@
 **Start Shizuku without a PC.** One command in Termux, or one tap in a tiny app.
 
 Start [Shizuku](https://shizuku.rikka.app/) from your phone with one command in
-[Termux](https://github.com/termux/termux-app), or one tap in a 17 KB app. No computer needed
+[Termux](https://github.com/termux/termux-app), or one tap in a 19 KB app. No computer needed
 whenever your phone allows it.
 
 ```sh
@@ -34,8 +34,10 @@ Then type `sz` in Termux, or tap **Start** in the app.
 - **Termux** from [GitHub](https://github.com/termux/termux-app/releases/latest) or
   [F-Droid](https://f-droid.org/packages/com.termux/). The Google Play version is outdated and
   will not work with the app.
-- **Shizuku** from [shizuku.rikka.app](https://shizuku.rikka.app/download/), or any fork that
-  keeps the package name `moe.shizuku.privileged.api`.
+- **Shizuku**: we recommend [thedjchi's fork](https://github.com/thedjchi/Shizuku/releases/latest),
+  whose Watchdog restarts Shizuku when Android kills it. The original from
+  [shizuku.rikka.app](https://shizuku.rikka.app/download/), or any fork that keeps the package
+  name `moe.shizuku.privileged.api`, works too.
 - **One way** for Termux to get adb access (see below).
 
 ## How Termux gets access
@@ -97,15 +99,25 @@ Shortcuts work in bash, zsh and fish.
 Download `ShizukuTermux.apk` from [Releases](https://github.com/Order52/shizuku-termux/releases).
 
 - **Start / Stop / Status** buttons, plus a setup checklist that tells you what is missing.
+- **Quick Settings tile**: pull down the quick panel, tap edit (pencil) and add the **Shizuku**
+  tile to turn Shizuku on and off from anywhere. It only wakes up when you tap it. If Shizuku's
+  Watchdog is on, Shizuku starts itself again after Stop; turn the Watchdog off to make Stop stick.
 - Long-press the app icon for **Start Shizuku** and **Stop Shizuku** shortcuts; drag them to
   your home screen for one-tap start.
-- 17 KB, no internet permission, no tracking. It only sends the `shizuku` command to Termux
+- 19 KB, no internet permission, no tracking. It only sends the `shizuku` command to Termux
   through Termux's official
   [RUN_COMMAND](https://github.com/termux/termux-app/wiki/RUN_COMMAND-Intent) interface.
 - Android 7.0 and newer.
 
 The first time, tap **Start** and allow *"Run commands in Termux environment"*. The installer
 already enables `allow-external-apps` in Termux, which the app needs.
+
+### Want more than on and off?
+
+[TinyKit](https://github.com/Order52/tinykit) is the companion app for everything else Shizuku
+can do: hide developer options, ad-blocking DNS, per-app privacy and background controls,
+cache cleaning, phone info and more, plus its own Shizuku start/stop. Keep it simple with
+shizuku-termux for on and off, and use TinyKit when you want more options.
 
 ## Troubleshooting
 

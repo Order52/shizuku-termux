@@ -37,16 +37,19 @@ public class MainActivity extends Activity {
     static final String ACTION_START = "io.github.order52.shizukutermux.START";
     static final String ACTION_STOP = "io.github.order52.shizukutermux.STOP";
 
+    static final String PERMISSION_RUN_COMMAND = "com.termux.permission.RUN_COMMAND";
+
     private static final String TERMUX = "com.termux";
     private static final String SHIZUKU = "moe.shizuku.privileged.api";
-    private static final String PERMISSION_RUN_COMMAND = "com.termux.permission.RUN_COMMAND";
     private static final String TERMUX_BIN = "/data/data/com.termux/files/usr/bin/";
     private static final String ACTION_RESULT = "io.github.order52.shizukutermux.RESULT";
     private static final String EXTRA_COMMAND = "command";
     private static final String INSTALL_COMMAND =
             "curl -fsSL https://raw.githubusercontent.com/Order52/shizuku-termux/main/install.sh | bash";
-    private static final String TERMUX_DOWNLOAD = "https://github.com/termux/termux-app/releases/latest";
-    private static final String SHIZUKU_DOWNLOAD = "https://shizuku.rikka.app/download/";
+    private static final String TERMUX_DOWNLOAD = "https://f-droid.org/packages/com.termux/";
+    // thedjchi's fork adds a Watchdog that restarts Shizuku when Android kills it.
+    private static final String SHIZUKU_DOWNLOAD = "https://github.com/thedjchi/Shizuku/releases/latest";
+    private static final String TINYKIT = "https://github.com/Order52/tinykit";
     private static final int REQUEST_PERMISSION = 1;
     private static final long RESULT_TIMEOUT_MS = 60_000L;
     // Termux added result reporting for RUN_COMMAND in v0.109.
@@ -224,17 +227,8 @@ public class MainActivity extends Activity {
         int flags = PendingIntent.FLAG_ONE_SHOT;
         if (Build.VERSION.SDK_INT >= 31) flags |= PendingIntent.FLAG_MUTABLE;
         PendingIntent pending = PendingIntent.getBroadcast(this, ++requestCounter, result, flags);
-
-        String script = "[ -x " + TERMUX_BIN + "shizuku ] || exit 127; exec "
-                + TERMUX_BIN + "shizuku " + command + " </dev/null";
-        Intent intent = new Intent("com.termux.RUN_COMMAND")
-                .setClassName(TERMUX, "com.termux.app.RunCommandService")
-                .putExtra("com.termux.RUN_COMMAND_PATH", TERMUX_BIN + "bash")
-                .putExtra("com.termux.RUN_COMMAND_ARGUMENTS", new String[]{"-c", script})
-                .putExtra("com.termux.RUN_COMMAND_BACKGROUND", true)
-                .putExtra("com.termux.RUN_COMMAND_PENDING_INTENT", pending);
         try {
-            startService(intent);
+            startService(termuxIntent(command, pending));
         } catch (RuntimeException e) {
             showOutput("Could not reach Termux: " + e.getMessage()
                     + "\n\nOpen Termux once so Android lets it start, then try again.");
@@ -245,6 +239,29 @@ public class MainActivity extends Activity {
         statusView.setText(label(command));
         handler.removeCallbacks(timeout);
         handler.postDelayed(timeout, RESULT_TIMEOUT_MS);
+    }
+
+    /** Asks Termux to run `shizuku COMMAND`; Termux sends the result to {@code result}. */
+    static Intent termuxIntent(String command, PendingIntent result) {
+        String shizuku = TERMUX_BIN + "shizuku";
+        String script = "[ -x " + shizuku + " ] || exit 127; " + ("toggle".equals(command)
+                // Checks the real state first, so one tap always does the right thing.
+                ? "if " + shizuku + " status </dev/null | grep -q 'is running'; then exec " + shizuku
+                        + " stop </dev/null; else exec " + shizuku + " start </dev/null; fi"
+                : "exec " + shizuku + " " + command + " </dev/null");
+        return new Intent("com.termux.RUN_COMMAND")
+                .setClassName(TERMUX, "com.termux.app.RunCommandService")
+                .putExtra("com.termux.RUN_COMMAND_PATH", TERMUX_BIN + "bash")
+                .putExtra("com.termux.RUN_COMMAND_ARGUMENTS", new String[]{"-c", script})
+                .putExtra("com.termux.RUN_COMMAND_BACKGROUND", true)
+                .putExtra("com.termux.RUN_COMMAND_PENDING_INTENT", result);
+    }
+
+    /** Whether the command output says Shizuku is running, or null when it doesn't say. */
+    static Boolean runningFrom(String output) {
+        if (output.contains("is running") || output.contains("already running")) return true;
+        if (output.contains("not running") || output.contains("stopped")) return false;
+        return null;
     }
 
     private void onResult(String command, Bundle result) {
@@ -274,10 +291,10 @@ public class MainActivity extends Activity {
         }
 
         String text = (stdout + "\n" + stderr).trim();
-        if (text.contains("is running") || text.contains("already running")) {
-            statusView.setText("Shizuku is running");
-        } else if (text.contains("not running") || text.contains("stopped")) {
-            statusView.setText("Shizuku is not running");
+        ShizukuTile.remember(this, text);
+        Boolean running = runningFrom(text);
+        if (running != null) {
+            statusView.setText(running ? "Shizuku is running" : "Shizuku is not running");
         } else if (exitCode != 0) {
             statusView.setText("Could not " + ("status".equals(command) ? "check" : command) + " Shizuku");
         }
@@ -360,6 +377,14 @@ public class MainActivity extends Activity {
         TextView help = text(getString(R.string.help), 13, false);
         help.setPadding(0, dp(16), 0, 0);
         root.addView(help);
+
+        TextView more = text("Quick Settings: add the Shizuku tile to turn Shizuku on and off from the "
+                + "quick panel.\n\nWant more? TinyKit is the companion app with privacy, app and system "
+                + "tools powered by Shizuku. This app stays simple: Shizuku on and off.", 13, false);
+        more.setPadding(0, dp(16), 0, 0);
+        root.addView(more);
+        LinearLayout.LayoutParams full = new LinearLayout.LayoutParams(-1, -2);
+        root.addView(button("Get TinyKit", v -> openUrl(TINYKIT)), full);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
