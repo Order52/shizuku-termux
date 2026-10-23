@@ -139,10 +139,11 @@ explain_no_access() {
 }
 
 run() {
+  # stderr of tr is dropped: callers like `grep -q` close the pipe early on purpose.
   if [ "$MODE" = root ]; then
-    su -c "$*" 2>/dev/null | tr -d '\r'
+    su -c "$*" 2>/dev/null | tr -d '\r' 2>/dev/null
   else
-    adb -s "$TARGET" shell "$*" 2>/dev/null | tr -d '\r'
+    adb -s "$TARGET" shell "$*" 2>/dev/null | tr -d '\r' 2>/dev/null
   fi
 }
 
