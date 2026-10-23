@@ -87,6 +87,7 @@ available.
 | `shizuku connect PORT` | Use a specific Wireless debugging port |
 | `shizuku autostart on/off` | Start Shizuku whenever Termux opens (on by default) |
 | `shizuku fix-termux` | Stop Android 12+ from killing Termux's background processes |
+| `shizuku devopts hide` / `show` | Hide Developer options from apps that refuse to run with them on ([details](#hide-developer-options)) |
 | `shizuku update` | Update to the latest version |
 | `shizuku uninstall` | Remove everything this installed |
 
@@ -97,6 +98,7 @@ Shortcuts work in bash, zsh and fish.
 Download `ShizukuTermux.apk` from [Releases](https://github.com/Order52/shizuku-termux/releases).
 
 - **Start / Stop / Status** buttons, plus a setup checklist that tells you what is missing.
+- **Hide developer options** button (see below).
 - Long-press the app icon for **Start Shizuku** and **Stop Shizuku** shortcuts; drag them to
   your home screen for one-tap start.
 - 17 KB, no internet permission, no tracking. It only sends the `shizuku` command to Termux
@@ -106,6 +108,18 @@ Download `ShizukuTermux.apk` from [Releases](https://github.com/Order52/shizuku-
 
 The first time, tap **Start** and allow *"Run commands in Termux environment"*. The installer
 already enables `allow-external-apps` in Termux, which the app needs.
+
+## Hide developer options
+
+Some banking, payment and game apps refuse to open while Developer options are on.
+`shizuku devopts hide` (or the button in the app) makes Android report Developer options as
+**off**, without turning anything off: USB/Wireless debugging, adb over TCP, Shizuku and every
+other developer setting keep working. The Developer options menu disappears from Settings
+until you run `shizuku devopts show`.
+
+It clears the `development_settings_enabled` flag that apps read. Apps that instead check
+whether USB debugging (`adb_enabled`) is on will still notice, because turning that off would
+also stop Shizuku and adb.
 
 ## Troubleshooting
 
@@ -135,6 +149,8 @@ Google Play version, and allow Termux to run in the background in your phone's b
 - Sets `allow-external-apps = true` in `~/.termux/termux.properties` so the app can talk to Termux.
 - On Android 12+, the first time it gets adb access, it turns off the phantom process limit
   (`max_phantom_processes`, `settings_enable_monitor_phantom_procs`).
+- Only if you use `devopts hide`: sets `development_settings_enabled` to 0 (undo with
+  `shizuku devopts show`).
 
 `shizuku uninstall` removes the command and shortcuts. Turn the phantom process limit back on
 with `adb shell settings put global settings_enable_monitor_phantom_procs true`.
