@@ -32,6 +32,7 @@ Usage: shizuku [command]
   connect PORT       Use this Wireless debugging port (if it is not found automatically)
   autostart on|off   Start Shizuku automatically when Termux opens (default: on)
   fix-termux         Stop Android 12+ from killing Termux's background processes
+  update             Update shizuku-termux to the latest version
   uninstall          Remove shizuku-termux
   version            Show the version
 
@@ -281,6 +282,8 @@ case "$ACTION" in
   fix-termux)
     find_access || { explain_no_access; exit 1; }
     fix_phantom_killer ;;
+  update)
+    curl -fsSL "https://raw.githubusercontent.com/Order52/shizuku-termux/main/install.sh" | bash ;;
   uninstall) uninstall ;;
   version|-v|--version) echo "shizuku-termux $VERSION" ;;
   help|-h|--help) usage ;;

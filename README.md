@@ -68,6 +68,7 @@ available.
 | `shizuku connect PORT` | Use a specific Wireless debugging port |
 | `shizuku autostart on/off` | Start Shizuku whenever Termux opens (on by default) |
 | `shizuku fix-termux` | Stop Android 12+ from killing Termux's background processes |
+| `shizuku update` | Update to the latest version |
 | `shizuku uninstall` | Remove everything this installed |
 
 Shortcuts work in bash, zsh and fish.
