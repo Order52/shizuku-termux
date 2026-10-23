@@ -1,0 +1,287 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# shizuku-termux — start Shizuku from Termux, without a computer whenever the phone allows it.
+# https://github.com/Order52/shizuku-termux
+#
+# How it gets the adb-level access Shizuku needs, in order:
+#   1. A local adb connection that is already open
+#   2. adb over TCP on port 5555 (opened earlier with `adb tcpip 5555` from a PC)
+#   3. Wireless debugging (Android 11+), found automatically after a one-time `shizuku pair`
+#   4. Root (su), if the phone is rooted
+
+VERSION=1.0.0
+PKG=moe.shizuku.privileged.api
+CONF_DIR="$HOME/.config/shizuku-termux"
+QUIET=0
+AUTO=0
+TARGET=""
+MODE=""
+
+say() { [ "$QUIET" = 1 ] || echo "$@"; }
+err() { [ "$AUTO" = 1 ] || echo "$@" >&2; }
+
+usage() {
+  cat <<EOF
+shizuku-termux $VERSION
+
+Usage: shizuku [command]
+
+  start              Start Shizuku (default)
+  stop               Stop Shizuku
+  status             Show whether Shizuku is running
+  pair [PORT CODE]   Pair Termux with Wireless debugging (Android 11+, one time)
+  connect PORT       Use this Wireless debugging port (if it is not found automatically)
+  autostart on|off   Start Shizuku automatically when Termux opens (default: on)
+  fix-termux         Stop Android 12+ from killing Termux's background processes
+  uninstall          Remove shizuku-termux
+  version            Show the version
+
+Shortcuts: sz (start), szoff (stop), szs (status)
+EOF
+}
+
+adb_works() { adb version >/dev/null 2>&1; }
+
+# Installs adb, or repairs it when Termux updated adb without its libraries
+# ("CANNOT LINK EXECUTABLE"), which happens on Termux installs that are out of date.
+repair_adb() {
+  local deps
+  pkg install -y android-tools </dev/null >/dev/null 2>&1
+  adb_works && return 0
+  deps=$(apt-cache depends --recurse --no-recommends --no-suggests --no-conflicts \
+    --no-breaks --no-replaces --no-enhances android-tools 2>/dev/null | grep -E '^[a-z0-9]' | sort -u)
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade \
+    -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold $deps </dev/null >/dev/null 2>&1
+  adb_works && return 0
+  echo "Updating all Termux packages so adb works (this can take a few minutes)..."
+  DEBIAN_FRONTEND=noninteractive pkg upgrade -y \
+    -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold </dev/null >/dev/null 2>&1
+  adb_works
+}
+
+ensure_adb() {
+  adb_works && return 0
+  [ "$AUTO" = 1 ] && return 1
+  # Installing packages can take minutes, so only do it when a person is at the terminal
+  # (not when the app or autostart calls us).
+  if [ ! -t 0 ] && [ "$FORCE_SETUP" != 1 ]; then
+    err "adb is not set up in Termux yet. Open Termux and run the install command."
+    return 1
+  fi
+  say "Setting up adb (one time)..."
+  repair_adb || { err "Could not set up adb. Check your internet, run 'pkg upgrade', then try again."; return 1; }
+}
+
+adb_ready() { [ "$(adb -s "$1" get-state 2>/dev/null)" = "device" ]; }
+
+# Connect to host:port and wait for this device to authorize Termux.
+try_connect() {
+  local t=$1 out i
+  if adb_ready "$t"; then TARGET=$t; return 0; fi
+  out=$(adb connect "$t" 2>&1)
+  case "$out" in
+    *"connected to"*) ;;
+    *) adb disconnect "$t" >/dev/null 2>&1; return 1 ;;
+  esac
+  for i in $(seq 1 30); do
+    if adb_ready "$t"; then TARGET=$t; return 0; fi
+    if [ "$i" = 2 ] && [ "$AUTO" = 0 ]; then
+      say "Tap ALLOW on the \"Allow USB debugging?\" popup (tick \"Always allow\")..."
+    fi
+    sleep 1
+  done
+  adb disconnect "$t" >/dev/null 2>&1
+  return 1
+}
+
+wireless_ports() {
+  # Wireless debugging advertises itself over mDNS; the port changes each time it is toggled.
+  adb mdns services 2>/dev/null | awk '/_adb-tls-connect/ {print $NF}' | sed 's/.*://' | sort -u
+  [ -f "$CONF_DIR/port" ] && cat "$CONF_DIR/port"
+  if command -v nmap >/dev/null 2>&1; then
+    nmap -Pn -T5 -p 30000-49999 --open -oG - 127.0.0.1 2>/dev/null | grep -oE '[0-9]+/open' | cut -d/ -f1
+  fi
+}
+
+has_root() {
+  command -v su >/dev/null 2>&1 || return 1
+  [ "$(su -c id -u 2>/dev/null | tr -d '\r')" = "0" ]
+}
+
+find_access() {
+  if ensure_adb; then
+    adb start-server >/dev/null 2>&1
+    local d p
+    for d in $(adb devices 2>/dev/null | awk 'NR>1 && $2=="device" {print $1}'); do
+      case "$d" in localhost:*|127.0.0.1:*) TARGET=$d; MODE=adb; return 0 ;; esac
+    done
+    if try_connect localhost:5555; then MODE=adb; return 0; fi
+    for p in $(wireless_ports); do
+      if try_connect "localhost:$p"; then MODE=adb; return 0; fi
+    done
+  fi
+  if has_root; then MODE=root; return 0; fi
+  return 1
+}
+
+explain_no_access() {
+  err "Could not get adb access on this phone. Pick one:"
+  err ""
+  err "  Android 11 or newer (no computer needed):"
+  err "    1. Settings > Developer options > turn on Wireless debugging"
+  err "    2. Tap \"Pair device with pairing code\" (use split screen with Termux)"
+  err "    3. Run: shizuku pair"
+  err ""
+  err "  Any Android version (computer needed once after each reboot):"
+  err "    adb tcpip 5555      <- run this on the computer with the phone plugged in"
+  err "    then run: shizuku"
+  err ""
+  err "  Rooted phones: allow Termux in your root manager, then run: shizuku"
+}
+
+run() {
+  if [ "$MODE" = root ]; then
+    su -c "$*" 2>/dev/null | tr -d '\r'
+  else
+    adb -s "$TARGET" shell "$*" 2>/dev/null | tr -d '\r'
+  fi
+}
+
+running() { run "ps -A 2>/dev/null || ps" | grep -q shizuku_server; }
+
+start_shizuku() {
+  if running; then say "Shizuku is already running."; return 0; fi
+
+  local apk dir starter s
+  apk=$(run "pm path $PKG" | head -1 | sed 's/^package://')
+  if [ -z "$apk" ]; then
+    err "Shizuku is not installed. Get it from https://shizuku.rikka.app/download/"
+    return 1
+  fi
+  dir=${apk%/*}
+
+  # Current Shizuku ships its starter as a native library; look it up every time,
+  # because the install path and ABI folder change with updates and between phones.
+  starter=$(run "ls $dir/lib/*/libshizuku.so 2>/dev/null" | head -1)
+  if [ -n "$starter" ]; then
+    run "$starter" >/dev/null
+  fi
+
+  # Older Shizuku versions write a start script to shared storage instead.
+  if ! running; then
+    for s in /storage/emulated/0/Android/data/$PKG/start.sh /sdcard/Android/data/$PKG/start.sh; do
+      if [ "$(run "[ -f $s ] && echo y")" = "y" ]; then
+        run "sh $s" >/dev/null
+        break
+      fi
+    done
+  fi
+
+  sleep 1
+  if running; then
+    say "Shizuku is running."
+  else
+    err "Shizuku did not start. Open the Shizuku app and check its message."
+    return 1
+  fi
+}
+
+stop_shizuku() {
+  if ! running; then say "Shizuku is not running."; return 0; fi
+  run "pkill -f shizuku_server || killall shizuku_server" >/dev/null
+  sleep 1
+  if running; then err "Could not stop Shizuku."; return 1; fi
+  say "Shizuku stopped."
+}
+
+pair() {
+  ensure_adb || return 1
+  local port=$1 code=$2
+  if [ -z "$port" ] || [ -z "$code" ]; then
+    echo "In Settings > Developer options > Wireless debugging, tap \"Pair device with pairing code\"."
+    echo "Keep that dialog open (split screen with Termux), then enter what it shows."
+    read -r -p "Pairing port (the number after the colon): " port
+    read -r -p "Pairing code (6 digits): " code
+  fi
+  if adb pair "localhost:$port" "$code" 2>&1 | grep -qi "success"; then
+    echo "Paired. Starting Shizuku..."
+    main_start
+  else
+    err "Pairing failed. Check the port and code, and keep the pairing dialog open."
+    return 1
+  fi
+}
+
+# Android 12+ kills background child processes ("phantom processes"), which breaks Termux
+# and can kill long commands. With adb access we can switch that limit off, as Termux
+# recommends. Done once; `shizuku fix-termux` runs it again.
+fix_phantom_killer() {
+  local sdk
+  sdk=$(run "getprop ro.build.version.sdk")
+  [ -n "$sdk" ] && [ "$sdk" -ge 31 ] 2>/dev/null || return 0
+  run "device_config set_sync_disabled_for_tests persistent; \
+       device_config put activity_manager max_phantom_processes 2147483647; \
+       settings put global settings_enable_monitor_phantom_procs false" >/dev/null
+  touch "$CONF_DIR/phantom-fixed"
+  say "Turned off Android's background process limit so it stops killing Termux."
+}
+
+main_start() {
+  if ! find_access; then explain_no_access; return 1; fi
+  [ -f "$CONF_DIR/phantom-fixed" ] || fix_phantom_killer
+  start_shizuku
+}
+
+uninstall() {
+  rm -f "$PREFIX/bin/shizuku"
+  rm -f "$HOME"/.config/fish/functions/{sz,szon,szoff,szs}.fish "$HOME/.config/fish/conf.d/shizuku-termux.fish"
+  local rc
+  for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    [ -f "$rc" ] && sed -i '/# >>> shizuku-termux >>>/,/# <<< shizuku-termux <<</d' "$rc"
+  done
+  rm -rf "$CONF_DIR"
+  echo "shizuku-termux removed."
+}
+
+ACTION=start
+ARGS=()
+for a in "$@"; do
+  case "$a" in
+    -q|--quiet) QUIET=1 ;;
+    --auto) AUTO=1; QUIET=1 ;;
+    *) ARGS+=("$a") ;;
+  esac
+done
+[ ${#ARGS[@]} -gt 0 ] && ACTION=${ARGS[0]}
+
+mkdir -p "$CONF_DIR"
+
+case "$ACTION" in
+  start|on)
+    if [ "$AUTO" = 1 ] && [ -f "$CONF_DIR/no-autostart" ]; then exit 0; fi
+    main_start ;;
+  stop|off)
+    find_access || { explain_no_access; exit 1; }
+    stop_shizuku ;;
+  status)
+    find_access || { echo "Shizuku status unknown: no adb access."; exit 1; }
+    if running; then echo "Shizuku is running."; else echo "Shizuku is not running."; fi ;;
+  pair) pair "${ARGS[1]}" "${ARGS[2]}" ;;
+  connect)
+    [ -n "${ARGS[1]}" ] || { echo "Usage: shizuku connect PORT"; exit 2; }
+    echo "${ARGS[1]}" > "$CONF_DIR/port"
+    main_start ;;
+  autostart)
+    case "${ARGS[1]}" in
+      on) rm -f "$CONF_DIR/no-autostart"; echo "Autostart on." ;;
+      off) touch "$CONF_DIR/no-autostart"; echo "Autostart off." ;;
+      *) echo "Usage: shizuku autostart on|off"; exit 2 ;;
+    esac ;;
+  setup) ensure_adb && say "adb is ready." ;;
+  fix-termux)
+    find_access || { explain_no_access; exit 1; }
+    fix_phantom_killer ;;
+  uninstall) uninstall ;;
+  version|-v|--version) echo "shizuku-termux $VERSION" ;;
+  help|-h|--help) usage ;;
+  *) usage; exit 2 ;;
+esac

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="start"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_start">
+        <intent
+            android:action="io.github.order52.shizukutermux.START"
+            android:targetPackage="io.github.order52.shizukutermux"
+            android:targetClass="io.github.order52.shizukutermux.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="stop"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_stop">
+        <intent
+            android:action="io.github.order52.shizukutermux.STOP"
+            android:targetPackage="io.github.order52.shizukutermux"
+            android:targetClass="io.github.order52.shizukutermux.MainActivity" />
+    </shortcut>
+</shortcuts>
