@@ -59,7 +59,6 @@ public class MainActivity extends Activity {
     private Button startButton;
     private Button stopButton;
     private Button refreshButton;
-    private Button devOptionsButton;
     private String pendingCommand;
     private boolean busy;
     private int requestCounter;
@@ -155,9 +154,6 @@ public class MainActivity extends Activity {
         startButton.setEnabled(ready && !busy);
         stopButton.setEnabled(ready && !busy);
         refreshButton.setEnabled(ready && !busy);
-        devOptionsButton.setEnabled(ready && !busy);
-        devOptionsButton.setText(devOptionsHidden()
-                ? "Show developer options" : "Hide developer options");
         if (!termuxOk || !termuxNewEnough) {
             statusView.setText("Install Termux first");
         } else if (!permissionOk) {
@@ -165,12 +161,6 @@ public class MainActivity extends Activity {
             startButton.setEnabled(!busy);
         }
         return ready;
-    }
-
-    /** The same flag apps read to detect Developer options. */
-    private boolean devOptionsHidden() {
-        return android.provider.Settings.Global.getInt(getContentResolver(),
-                android.provider.Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) == 0;
     }
 
     private void line(StringBuilder sb, boolean ok, String text) {
@@ -284,12 +274,7 @@ public class MainActivity extends Activity {
         }
 
         String text = (stdout + "\n" + stderr).trim();
-        if (command.startsWith("devopts")) {
-            refreshSetup();
-            statusView.setText(text.contains("hidden") ? "Developer options hidden"
-                    : text.contains("visible") ? "Developer options visible"
-                    : "Could not change developer options");
-        } else if (text.contains("is running") || text.contains("already running")) {
+        if (text.contains("is running") || text.contains("already running")) {
             statusView.setText("Shizuku is running");
         } else if (text.contains("not running") || text.contains("stopped")) {
             statusView.setText("Shizuku is not running");
@@ -303,8 +288,6 @@ public class MainActivity extends Activity {
         switch (command) {
             case "start": return "Starting Shizuku…";
             case "stop": return "Stopping Shizuku…";
-            case "devopts hide": return "Hiding developer options…";
-            case "devopts show": return "Showing developer options…";
             default: return "Checking…";
         }
     }
@@ -340,10 +323,6 @@ public class MainActivity extends Activity {
         buttons.addView(stopButton, weight());
         buttons.addView(refreshButton, weight());
         root.addView(buttons);
-
-        devOptionsButton = button("", v -> run(devOptionsHidden() ? "devopts show" : "devopts hide"));
-        root.addView(devOptionsButton, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         outputView = text("", 14, false);
         outputView.setTypeface(Typeface.MONOSPACE);

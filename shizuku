@@ -8,7 +8,7 @@
 #   3. Wireless debugging (Android 11+), found automatically after a one-time `shizuku pair`
 #   4. Root (su), if the phone is rooted
 
-VERSION=1.1.0
+VERSION=1.2.0
 PKG=moe.shizuku.privileged.api
 CONF_DIR="$HOME/.config/shizuku-termux"
 QUIET=0
@@ -32,8 +32,7 @@ Usage: shizuku [command]
   connect PORT       Use this Wireless debugging port (if it is not found automatically)
   autostart on|off   Start Shizuku automatically when Termux opens (default: on)
   fix-termux         Stop Android 12+ from killing Termux's background processes
-  devopts hide|show  Hide Developer options from apps (they stay on, adb keeps working)
-  update            Update shizuku-termux to the latest version
+  update             Update shizuku-termux to the latest version
   uninstall          Remove shizuku-termux
   version            Show the version
 
@@ -228,23 +227,6 @@ fix_phantom_killer() {
   say "Turned off Android's background process limit so it stops killing Termux."
 }
 
-# Apps that refuse to run with Developer options on read the global
-# development_settings_enabled flag. Clearing only that flag hides the menu and fools
-# those checks, while every developer setting (including adb and Shizuku) stays as it is.
-devopts() {
-  case "$1" in
-    hide) run "settings put global development_settings_enabled 0" >/dev/null ;;
-    show) run "settings put global development_settings_enabled 1" >/dev/null ;;
-    ""|status) ;;
-    *) echo "Usage: shizuku devopts hide|show|status"; return 2 ;;
-  esac
-  if [ "$(run "settings get global development_settings_enabled")" = 0 ]; then
-    echo "Developer options are hidden (apps see them as off; adb keeps working)."
-  else
-    echo "Developer options are visible."
-  fi
-}
-
 main_start() {
   if ! find_access; then explain_no_access; return 1; fi
   [ -f "$CONF_DIR/phantom-fixed" ] || fix_phantom_killer
@@ -300,9 +282,6 @@ case "$ACTION" in
   fix-termux)
     find_access || { explain_no_access; exit 1; }
     fix_phantom_killer ;;
-  devopts|dev)
-    find_access || { explain_no_access; exit 1; }
-    devopts "${ARGS[1]}" ;;
   update)
     curl -fsSL "https://raw.githubusercontent.com/Order52/shizuku-termux/main/install.sh" | bash ;;
   uninstall) uninstall ;;
